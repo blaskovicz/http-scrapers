@@ -1,6 +1,8 @@
+from dotenv import load_dotenv
 from requests import get
 import paho.mqtt.client as mqtt
 import re
+from os import environ
 
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*'
@@ -16,19 +18,18 @@ headers = {
                   'Chrome/107.0.0.0 Safari/537.36',
 }
 
-topic = 'stat/furnace/oil-price-dollars'
-username = 'http-scraper'
-password = '-'
+cost_re = re.compile(r"<td>\s*\$(\d+\.\d+)\s*</td>")
 
 def main():
+    load_dotenv()
+
+    mqtt_topic = environ['mqtt_topic']
     client = mqtt.Client(client_id='scraper-cashheatingoil')
-    client.username_pw_set(username, password)
-    client.connect(host='192.168.68.170')
+    client.username_pw_set(environ['mqtt_username'], environ['mqtt_password'])
+    client.connect(host=environ['mqtt_host'])
     client.loop_start()
 
-    cost_re = re.compile(r"<td>\s*\$(\d+\.\d+)\s*</td>")
     r = get('https://www.cashheatingoil.com/wilton_ct_oil_prices/06897', headers=headers)
-
     if r.status_code != 200:
         raise f'{r.status_code}: {r.text}'
 
@@ -41,9 +42,9 @@ def main():
         except ValueError as e:
             print(f'failed to parse {raw_cost}: {e}')
 
-    res = client.publish(topic, cost, retain=True)
+    res = client.publish(mqtt_topic, cost, retain=True)
     res.wait_for_publish(timeout=10)
-    print(f'{topic} {cost}')
+    print(f'publish {mqtt_topic} {cost}')
 
 
 if __name__ == '__main__':
