@@ -42,9 +42,13 @@ def main():
         except ValueError as e:
             print(f'failed to parse {raw_cost}: {e}')
 
-    res = client.publish(mqtt_topic, cost, retain=True)
+    # influx format https://docs.influxdata.com/influxdb/v1.8/write_protocols/line_protocol_tutorial/
+    message = f'fuel,town=wilton,state=ct,zip=06897 price_lowest={cost}'
+    res = client.publish(mqtt_topic, message, retain=True)
+
     res.wait_for_publish(timeout=10)
-    print(f'publish {mqtt_topic} {cost}')
+
+    print(f'publish {mqtt_topic} {message}')
 
 
 if __name__ == '__main__':
